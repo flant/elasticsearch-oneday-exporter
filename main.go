@@ -111,21 +111,27 @@ func (i *Collector) Collect(ch chan<- prometheus.Metric) {
 			case "gb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024 * 1024 * 1024
-				label = append(label, value.Name)
-				fmt.Println("oneday_elasticsearch_indices_store_size_bytes_primary{cluster=" + *clusterName + "," + "index=" +  value.Name + "}" + " " + strconv.Itoa(newSize))
+				label = append(label, value.Name, *clusterName)
 				ch <- prometheus.MustNewConstMetric(
 					indexSize, prometheus.GaugeValue, float64(newSize), label...
 				)
 			case "mb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024 * 1024
-				fmt.Println("oneday_elasticsearch_indices_store_size_bytes_primary{cluster=" + *clusterName + "," + "index=" +  value.Name + "}" + " " + strconv.Itoa(newSize))
+				label = append(label, value.Name, *clusterName)
+				ch <- prometheus.MustNewConstMetric(
+					indexSize, prometheus.GaugeValue, float64(newSize), label...
+				)
 			case "kb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024
-				fmt.Println("oneday_elasticsearch_indices_store_size_bytes_primary{cluster=" + *clusterName + "," + "index=" +  value.Name + "}" + " " + strconv.Itoa(newSize))
+				label = append(label, value.Name, *clusterName)
+				ch <- prometheus.MustNewConstMetric(
+					indexSize, prometheus.GaugeValue, float64(newSize), label...
+				)
 			}
 		}
+		label = append(label, value.Name, *clusterName)
 		ch <- prometheus.MustNewConstMetric(
 			docsCount, prometheus.GaugeValue, float64(value.Docs), label...
 		)
