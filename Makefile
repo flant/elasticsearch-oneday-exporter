@@ -16,11 +16,11 @@ PREFIX                  ?= $(shell pwd)
 
 # Workaround to mimic promu's build behavior which usually handles the extension.
 ifeq ($(GOOS),windows)
-        EXTENSION = .exe
+	EXTENSION = .exe
 endif
 
 build:
-        go build -o $(PREFIX)/es-oneday-exporter-$(GOOS)-$(GOARCH)$(EXTENSION)
+	go build -o $(PREFIX)/es-oneday-exporter-$(GOOS)-$(GOARCH)$(EXTENSION)
 
 test:
-        go test
+	go test
