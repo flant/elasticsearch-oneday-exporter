@@ -31,18 +31,7 @@ var (
 	indexSize = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"), "Size for each index in today", label, nil,
 	)
-	docsCount = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "indices_docs", "total"), "Total count off docs in index", label, nil,
-	)
 )
-
-type Collector struct{}
-
-func (i *Collector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- indexSize
-	ch <- docsCount
-}
-
 
 type Index struct {
 	Name    string `json:"index"`
@@ -69,6 +58,12 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Collector struct{
+}
+
+func (i *Collector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- indexSize
+}
 
 func (i *Collector) Collect(ch chan<- prometheus.Metric) {
 
@@ -95,15 +90,13 @@ func (i *Collector) Collect(ch chan<- prometheus.Metric) {
 	}
 	json.Unmarshal([]byte(body), &data)
 	for _, value := range data {
-		var label []string
 		get_symbol := value.Size[len(value.Size)-2:]
 		check_symbol := match(pattern_digital, get_symbol)
 		switch check_symbol {
 		case "digital":
 			originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
-			label = append(label, value.Name, *clusterName)
 			ch <- prometheus.MustNewConstMetric(
-				indexSize, prometheus.GaugeValue, float64(originSize), label...
+				indexSize, prometheus.GaugeValue, float64(originSize), value.Name, *clusterName,
 			)
 		case "string":
 			measure := value.Size[len(value.Size)-2:]
@@ -111,30 +104,23 @@ func (i *Collector) Collect(ch chan<- prometheus.Metric) {
 			case "gb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024 * 1024 * 1024
-				label = append(label, value.Name, *clusterName)
 				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), label...
+					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName,
 				)
 			case "mb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024 * 1024
-				label = append(label, value.Name, *clusterName)
 				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), label...
+					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName,
 				)
 			case "kb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024
-				label = append(label, value.Name, *clusterName)
 				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), label...
+					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName,
 				)
 			}
 		}
-		label = append(label, value.Name, *clusterName)
-		ch <- prometheus.MustNewConstMetric(
-			docsCount, prometheus.GaugeValue, float64(value.Docs), label...
-		)
 	}
 }
 
