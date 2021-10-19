@@ -27,15 +27,19 @@ var (
 	listenPort = kingpin.Flag("port", "Export's port").Default(":9101").String()
 	esUrl = kingpin.Flag("esUrl", "ElasticSearch's URL").Default("https://opendistro").String()
 	esPort = kingpin.Flag("esPort", "ElasticSearch's port").Default("9200").String()
-	label = []string{"index", "cluster"}
+	projectName = kingpin.Flag("projectName", "Project's name").String()
+	label = []string{"index", "cluster", "project"}
 	indexSize = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"), "Size for each index in today", label, nil,
+	)
+	docsCount = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "indices_docs", "total"), "Count docs for each index in today", label, nil,
 	)
 )
 
 type Index struct {
 	Name    string `json:"index"`
-	Docs 	int `json:"dc"`
+	Docs 	string `json:"dc"`
 	Size    string `json:"pri.store.size"`
 }
 
@@ -63,6 +67,7 @@ type Collector struct{
 
 func (i *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- indexSize
+	ch <- docsCount
 }
 
 func (i *Collector) Collect(ch chan<- prometheus.Metric) {
@@ -90,13 +95,14 @@ func (i *Collector) Collect(ch chan<- prometheus.Metric) {
 	}
 	json.Unmarshal([]byte(body), &data)
 	for _, value := range data {
+		dcCount, _ := strconv.Atoi(value.Docs)
 		get_symbol := value.Size[len(value.Size)-2:]
 		check_symbol := match(pattern_digital, get_symbol)
 		switch check_symbol {
 		case "digital":
 			originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 			ch <- prometheus.MustNewConstMetric(
-				indexSize, prometheus.GaugeValue, float64(originSize), value.Name, *clusterName,
+				indexSize, prometheus.GaugeValue, float64(originSize), value.Name, *clusterName, *projectName,
 			)
 		case "string":
 			measure := value.Size[len(value.Size)-2:]
@@ -105,22 +111,25 @@ func (i *Collector) Collect(ch chan<- prometheus.Metric) {
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024 * 1024 * 1024
 				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName,
+					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName, *projectName,
 				)
 			case "mb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024 * 1024
 				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName,
+					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName, *projectName,
 				)
 			case "kb":
 				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
 				newSize := originSize * 1024
 				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName,
+					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName, *projectName,
 				)
 			}
 		}
+		ch <- prometheus.MustNewConstMetric(
+			docsCount, prometheus.GaugeValue, float64(dcCount), value.Name, *clusterName, *projectName,
+		)
 	}
 }
 
