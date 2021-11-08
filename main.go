@@ -1,157 +1,139 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strconv"
-	"regexp"
-	"time"
-	"log"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const namespace = "oneday_elasticsearch"
-
-var (
-	pattern_digital = "^[[:digit:]]"
-	clusterName = kingpin.Flag("cluster", "Cluster's name").Default("opendistro").String()
-	re = regexp.MustCompile("[0-9]+")
-	data []Index
-	currentDate = time.Now()
-	metricsPath = kingpin.Flag("path", "URL path for collected metrics").Default("/metrics").String()
-	listenPort = kingpin.Flag("port", "Export's port").Default(":9101").String()
-	esUrl = kingpin.Flag("esUrl", "ElasticSearch's URL").Default("https://opendistro").String()
-	esPort = kingpin.Flag("esPort", "ElasticSearch's port").Default("9200").String()
-	projectName = kingpin.Flag("projectName", "Project's name").String()
-	label = []string{"index", "cluster", "project"}
-	indexSize = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"), "Size for each index in today", label, nil,
-	)
-	docsCount = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "indices_docs", "total"), "Count docs for each index in today", label, nil,
-	)
-)
-
-type Index struct {
-	Name    string `json:"index"`
-	Docs 	string `json:"dc"`
-	Size    string `json:"pri.store.size"`
+// Same struct prometheus uses for their /version address.
+// Separate copy to avoid pulling all of prometheus as a dependency
+type prometheusVersion struct {
+	Version   string `json:"version"`
+	Revision  string `json:"revision"`
+	Branch    string `json:"branch"`
+	BuildUser string `json:"buildUser"`
+	BuildDate string `json:"buildDate"`
+	GoVersion string `json:"goVersion"`
 }
 
-func match(pattern string, text string) string {
-    matched, _ := regexp.Match(pattern, []byte(text))
-	var number = "digital"
-	var str = "string"
-  if matched {
-        return number
-    } else {
-        return str
-    }
+var (
+	log      = logrus.New()
+	logLevel = kingpin.Flag("log.level",
+		"Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]",
+	).Default("info").Enum("debug", "info", "warn", "error", "fatal")
+	logFormat = kingpin.Flag("log.format",
+		"Set the log format. Valid formats: [json, text]",
+	).Default("json").Enum("json", "text")
+
+	listenAddress = kingpin.Flag("telemetry.addr", "Listen on host:port.").
+			Default(":9101").String()
+	metricsPath = kingpin.Flag("telemetry.path", "URL path for surfacing collected metrics.").
+			Default("/metrics").String()
+
+	address = kingpin.Flag("address", "Elasticsearch node to use.").
+		Default("http://localhost:9200").String()
+	insecure = kingpin.Flag("insecure", "Allow insecure server connections when using SSL.").
+			Default("false").Bool()
+
+	projectName = kingpin.Flag("project", "Project name").String()
+)
+
+func main() {
+	kingpin.Version(version.Print("es-oneday-exporter"))
+	kingpin.HelpFlag.Short('h')
+
+	kingpin.Parse()
+
+	if err := setLogLevel(*logLevel); err != nil {
+		log.Fatal(err)
+	}
+	if err := setLogFormat(*logFormat); err != nil {
+		log.Fatal(err)
+	}
+
+	http.Handle(*metricsPath, promhttp.Handler())
+	http.HandleFunc("/healthz", healthCheck)
+	http.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		// we can't use "version" directly as it is a package, and not an object that
+		// can be serialized.
+		err := json.NewEncoder(w).Encode(prometheusVersion{
+			Version:   version.Version,
+			Revision:  version.Revision,
+			Branch:    version.Branch,
+			BuildUser: version.BuildUser,
+			BuildDate: version.BuildDate,
+			GoVersion: version.GoVersion,
+		})
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error encoding JSON: %s", err), http.StatusInternalServerError)
+		}
+	})
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<html>
+<head><title>es-oneday-exporter</title></head>
+<body>
+<h1>es-oneday-exporter</h1>
+<p><a href="` + *metricsPath + `">Metrics</a></p>
+<p><i>` + version.Info() + `</i></p>
+</body>
+</html>`))
+	})
+
+	log.Info("Starting es-oneday-exporter", version.Info())
+	log.Info("Build context", version.BuildContext())
+
+	collector, err := NewCollector(*address, *projectName, *insecure)
+	if err != nil {
+		log.Fatal("error creating new collector instance: ", err)
+	}
+
+	prometheus.MustRegister(collector)
+
+	log.Info("Starting server on ", *listenAddress)
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_, err := fmt.Fprintln(w, `{"status":"ok"}`)
 	if err != nil {
-		log.Println("Failed to write to stream: %v", err)
+		log.Debugf("Failed to write to stream: %v", err)
 	}
 }
 
-type Collector struct{
+func setLogLevel(level string) error {
+	lvl, err := logrus.ParseLevel(level)
+	if err != nil {
+		return err
+	}
+	log.SetLevel(lvl)
+
+	return nil
 }
 
-func (i *Collector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- indexSize
-	ch <- docsCount
-}
+func setLogFormat(format string) error {
+	var formatter logrus.Formatter
 
-func (i *Collector) Collect(ch chan<- prometheus.Metric) {
-
-	cUrl := fmt.Sprintf("%s:%s/_cat/indices/*-%s?format=json&pretty&h=index,dc,pri.store.size", *esUrl, *esPort , currentDate.Format("2006.01.02"))
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	req, err := http.NewRequest("GET", cUrl, nil)
-	if err != nil {
-		log.Fatal("Error! Bad request.")
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal("Error! Query doesn't return a result.")
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	json.Unmarshal([]byte(body), &data)
-	for _, value := range data {
-		dcCount, _ := strconv.Atoi(value.Docs)
-		get_symbol := value.Size[len(value.Size)-2:]
-		check_symbol := match(pattern_digital, get_symbol)
-		switch check_symbol {
-		case "digital":
-			originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
-			ch <- prometheus.MustNewConstMetric(
-				indexSize, prometheus.GaugeValue, float64(originSize), value.Name, *clusterName, *projectName,
-			)
-		case "string":
-			measure := value.Size[len(value.Size)-2:]
-			switch measure {
-			case "gb":
-				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
-				newSize := originSize * 1024 * 1024 * 1024
-				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName, *projectName,
-				)
-			case "mb":
-				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
-				newSize := originSize * 1024 * 1024
-				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName, *projectName,
-				)
-			case "kb":
-				originSize, _ := strconv.Atoi(re.FindAllString(value.Size, -1)[0])
-				newSize := originSize * 1024
-				ch <- prometheus.MustNewConstMetric(
-					indexSize, prometheus.GaugeValue, float64(newSize), value.Name, *clusterName, *projectName,
-				)
-			}
+	switch format {
+	case "text":
+		formatter = &logrus.TextFormatter{
+			DisableColors: true,
+			FullTimestamp: true,
 		}
-		ch <- prometheus.MustNewConstMetric(
-			docsCount, prometheus.GaugeValue, float64(dcCount), value.Name, *clusterName, *projectName,
-		)
+	case "json":
+		formatter = &logrus.JSONFormatter{}
+	default:
+		return fmt.Errorf("invalid log format: %s", format)
 	}
-}
 
-func main(){
-	kingpin.Version("0.0.1")
-	kingpin.Parse()
+	log.SetFormatter(formatter)
 
-	prometheus.MustRegister(&Collector{})
-
-	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc("/healthz", healthCheck)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`<html>
-<head><title>oneday-exporter</title></head>
-<body>
-<h1>oneday-exporter</h1>
-<p><a href="` + *metricsPath + `">Metrics</a></p>
-</body>
-</html>`))
-	})
-
-	log.Println("Starting oneday-exporter")
-	log.Println("Starting server on", *listenPort)
-	log.Fatal(http.ListenAndServe(*listenPort, nil))
+	return nil
 }
