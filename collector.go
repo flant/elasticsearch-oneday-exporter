@@ -7,46 +7,70 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	labels    = []string{"index", "cluster", "project"}
-	indexSize = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"), "Size for each index in today", labels, nil,
-	)
-	docsCount = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "indices_docs", "total"), "Count docs for each index in today", labels, nil,
-	)
-)
+func NewCollector(address, project string, insecure bool) (*Collector, error) {
+	namespace := "oneday_elasticsearch"
+	labels := []string{"index"}
 
-type Collector struct{}
+	client, err := NewClient([]string{address}, insecure)
+	if err != nil {
+		return nil, fmt.Errorf("error creating the client: %v", err)
+	}
 
-func (i *Collector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- indexSize
-	ch <- docsCount
+	info, err := client.GetInfo()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster info: %v", err)
+	}
+	log.Infof("Cluster info: %v", info)
+
+	cluster := info["cluster_name"].(string)
+
+	constLabels := prometheus.Labels{
+		"cluster": cluster,
+		"project": project,
+	}
+
+	return &Collector{
+		indexSize: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"),
+			"Size of each index to date", labels, constLabels,
+		),
+		docsCount: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices_docs", "total"),
+			"Count of docs for each index to date", labels, constLabels,
+		),
+	}, nil
 }
 
-func (i *Collector) Collect(ch chan<- prometheus.Metric) {
-	client, err := NewClient([]string{fmt.Sprintf("%s:%s", *esUrl, *esPort)}, true)
+type Collector struct {
+	client *Client
+
+	indexSize *prometheus.Desc
+	docsCount *prometheus.Desc
+}
+
+func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.indexSize
+	ch <- c.docsCount
+}
+
+func (c *Collector) Collect(ch chan<- prometheus.Metric) {
+	indices, err := c.client.GetIndices([]string{fmt.Sprintf("*-%s", time.Now().Format("2006.01.02"))})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("error getting indices stats: ", err)
 	}
 
-	indices, err := client.GetIndices([]string{fmt.Sprintf("*-%s", time.Now().Format("2006.01.02"))})
-	if err != nil {
-		log.Fatal(err)
-	}
+	for index, v := range indices {
+		data := v.(map[string]interface{})
 
-	for name, val := range indices {
-		index := val.(map[string]interface{})
-
-		total := index["total"].(map[string]interface{})
+		total := data["total"].(map[string]interface{})
 		docs := total["docs"].(map[string]interface{})
 		count := docs["count"].(float64)
-		ch <- prometheus.MustNewConstMetric(docsCount, prometheus.GaugeValue, count, name, *clusterName, *projectName)
+		ch <- prometheus.MustNewConstMetric(c.docsCount, prometheus.GaugeValue, count, index)
 
-		primaries := index["primaries"].(map[string]interface{})
+		primaries := data["primaries"].(map[string]interface{})
 		store := primaries["store"].(map[string]interface{})
 		size := store["size_in_bytes"].(float64)
-		ch <- prometheus.MustNewConstMetric(indexSize, prometheus.GaugeValue, size, name, *clusterName, *projectName)
+		ch <- prometheus.MustNewConstMetric(c.indexSize, prometheus.GaugeValue, size, index)
 
 	}
 }

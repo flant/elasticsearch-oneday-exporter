@@ -12,8 +12,6 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-const namespace = "oneday_elasticsearch"
-
 // Same struct prometheus uses for their /version address.
 // Separate copy to avoid pulling all of prometheus as a dependency
 type prometheusVersion struct {
@@ -34,12 +32,17 @@ var (
 		"Set the log format. Valid formats: [json, text]",
 	).Default("json").Enum("json", "text")
 
-	clusterName = kingpin.Flag("cluster", "Cluster's name").Default("opendistro").String()
-	metricsPath = kingpin.Flag("path", "URL path for collected metrics").Default("/metrics").String()
-	listenPort  = kingpin.Flag("port", "Export's port").Default(":9101").String()
-	esUrl       = kingpin.Flag("esUrl", "ElasticSearch's URL").Default("https://opendistro").String()
-	esPort      = kingpin.Flag("esPort", "ElasticSearch's port").Default("9200").String()
-	projectName = kingpin.Flag("projectName", "Project's name").String()
+	listenAddress = kingpin.Flag("telemetry.addr", "Listen on host:port.").
+			Default(":9141").String()
+	metricsPath = kingpin.Flag("telemetry.path", "URL path for surfacing collected metrics.").
+			Default("/metrics").String()
+
+	address = kingpin.Flag("address", "Elasticsearch node to use.").
+		Default("http://localhost:9200").String()
+	insecure = kingpin.Flag("insecure", "Allow insecure server connections when using SSL.").
+			Default("false").Bool()
+
+	projectName = kingpin.Flag("project", "Project name").String()
 )
 
 func main() {
@@ -55,7 +58,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	prometheus.MustRegister(&Collector{})
+	collector, err := NewCollector(*address, *projectName, *insecure)
+	if err != nil {
+		log.Fatal("error creating new collector instance: ", err)
+	}
+
+	prometheus.MustRegister(collector)
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/healthz", healthCheck)
@@ -88,8 +96,8 @@ func main() {
 	log.Info("Starting es-oneday-exporter", version.Info())
 	log.Info("Build context", version.BuildContext())
 
-	log.Info("Starting server on ", *listenPort)
-	log.Fatal(http.ListenAndServe(*listenPort, nil))
+	log.Info("Starting server on ", *listenAddress)
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
