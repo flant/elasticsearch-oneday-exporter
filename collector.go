@@ -61,13 +61,12 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 	for index, v := range indices {
 		data := v.(map[string]interface{})
+		primaries := data["primaries"].(map[string]interface{})
 
-		total := data["total"].(map[string]interface{})
-		docs := total["docs"].(map[string]interface{})
+		docs := primaries["docs"].(map[string]interface{})
 		count := docs["count"].(float64)
 		ch <- prometheus.MustNewConstMetric(c.docsCount, prometheus.GaugeValue, count, index)
 
-		primaries := data["primaries"].(map[string]interface{})
 		store := primaries["store"].(map[string]interface{})
 		size := store["size_in_bytes"].(float64)
 		ch <- prometheus.MustNewConstMetric(c.indexSize, prometheus.GaugeValue, size, index)
