@@ -33,7 +33,7 @@ var (
 	).Default("json").Enum("json", "text")
 
 	listenAddress = kingpin.Flag("telemetry.addr", "Listen on host:port.").
-			Default(":9141").String()
+			Default(":9101").String()
 	metricsPath = kingpin.Flag("telemetry.path", "URL path for surfacing collected metrics.").
 			Default("/metrics").String()
 
@@ -57,13 +57,6 @@ func main() {
 	if err := setLogFormat(*logFormat); err != nil {
 		log.Fatal(err)
 	}
-
-	collector, err := NewCollector(*address, *projectName, *insecure)
-	if err != nil {
-		log.Fatal("error creating new collector instance: ", err)
-	}
-
-	prometheus.MustRegister(collector)
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/healthz", healthCheck)
@@ -95,6 +88,13 @@ func main() {
 
 	log.Info("Starting es-oneday-exporter", version.Info())
 	log.Info("Build context", version.BuildContext())
+
+	collector, err := NewCollector(*address, *projectName, *insecure)
+	if err != nil {
+		log.Fatal("error creating new collector instance: ", err)
+	}
+
+	prometheus.MustRegister(collector)
 
 	log.Info("Starting server on ", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
