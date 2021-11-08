@@ -7,6 +7,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+type Collector struct {
+	client *Client
+
+	indexSize *prometheus.Desc
+	docsCount *prometheus.Desc
+}
+
 func NewCollector(address, project string, insecure bool) (*Collector, error) {
 	namespace := "oneday_elasticsearch"
 	labels := []string{"index"}
@@ -29,7 +36,7 @@ func NewCollector(address, project string, insecure bool) (*Collector, error) {
 		"project": project,
 	}
 
-	return &Collector{
+	return &Collector{client: client,
 		indexSize: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"),
 			"Size of each index to date", labels, constLabels,
@@ -39,13 +46,6 @@ func NewCollector(address, project string, insecure bool) (*Collector, error) {
 			"Count of docs for each index to date", labels, constLabels,
 		),
 	}, nil
-}
-
-type Collector struct {
-	client *Client
-
-	indexSize *prometheus.Desc
-	docsCount *prometheus.Desc
 }
 
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
