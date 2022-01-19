@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -42,6 +43,8 @@ var (
 	insecure = kingpin.Flag("insecure", "Allow insecure server connections when using SSL.").
 			Default("false").Bool()
 
+	refreshinterval = kingpin.Flag("refreshinterval", "Period in seconds to refresh daily indices.").Default("300").Int()
+
 	projectName = kingpin.Flag("project", "Project name").String()
 )
 
@@ -57,6 +60,21 @@ func main() {
 	if err := setLogFormat(*logFormat); err != nil {
 		log.Fatal(err)
 	}
+
+	refreshTicker := time.NewTicker(time.Duration(*refreshinterval) * time.Second)
+	client, err := NewClient([]string{*address}, *insecure)
+	if err != nil {
+		log.Fatalf("error creating the client: %v", err)
+	}
+	go func() {
+		for range refreshTicker.C {
+			err := client.RefreshIndices()
+			if err != nil {
+				log.Fatalf("error refreshing index: %v", err)
+			}
+		}
+	}()
+	defer refreshTicker.Stop()
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/healthz", healthCheck)
