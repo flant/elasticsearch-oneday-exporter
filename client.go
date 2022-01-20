@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
 )
@@ -73,17 +72,4 @@ func (c *Client) GetInfo() (map[string]interface{}, error) {
 	}
 
 	return r, nil
-}
-
-func (c *Client) RefreshIndices() error {
-	log.Debug("refresh indices")
-	resp, err := c.es.Indices.Refresh(
-		c.es.Indices.Refresh.WithIndex([]string{fmt.Sprintf("*-%s", time.Now().Format("2006.01.02"))}...),
-	)
-	defer resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("error getting indices stats: ", err)
-	}
-	return nil
-
 }
