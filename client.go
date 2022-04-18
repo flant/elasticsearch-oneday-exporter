@@ -13,13 +13,11 @@ type Client struct {
 	es *elasticsearch.Client
 }
 
-func NewClient(addresses []string, insecure bool) (*Client, error) {
+func NewClient(addresses []string, tlsClientConfig *tls.Config) (*Client, error) {
 	cfg := elasticsearch.Config{
 		Addresses: addresses,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: insecure,
-			},
+			TLSClientConfig: tlsClientConfig,
 		},
 	}
 

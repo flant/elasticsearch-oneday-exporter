@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"regexp"
 	"strings"
@@ -21,12 +22,12 @@ type Collector struct {
 	docsCount      *prometheus.Desc
 }
 
-func NewCollector(address, project string, insecure bool) (*Collector, error) {
+func NewCollector(address, project string, tlsClientConfig *tls.Config) (*Collector, error) {
 	namespace := "oneday_elasticsearch"
 	labels := []string{"index", "index_group"}
 	labels_group := []string{"index_group"}
 
-	client, err := NewClient([]string{address}, insecure)
+	client, err := NewClient([]string{address}, tlsClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating the client: %v", err)
 	}

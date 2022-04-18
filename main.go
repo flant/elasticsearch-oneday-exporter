@@ -39,7 +39,13 @@ var (
 
 	address = kingpin.Flag("address", "Elasticsearch node to use.").
 		Default("http://localhost:9200").String()
-	insecure = kingpin.Flag("insecure", "Allow insecure server connections when using SSL.").
+	cacert = kingpin.Flag("ca-cert", "Path to PEM file that contains trusted Certificate Authorities for the Elasticsearch connection.").
+		Default("").String()
+	clientcert = kingpin.Flag("client-cert", "Path to PEM file that contains the corresponding cert for the private key to connect to Elasticsearch.").
+			Default("").String()
+	clientkey = kingpin.Flag("client-key", "Path to PEM file that contains the private key for client auth when connecting to Elasticsearch.").
+			Default("").String()
+	insecure = kingpin.Flag("insecure", "Skip SSL verification when connecting to Elasticsearch.").
 			Default("false").Bool()
 
 	projectName = kingpin.Flag("project", "Project name").String()
@@ -88,7 +94,9 @@ func main() {
 	log.Info("Starting es-oneday-exporter", version.Info())
 	log.Info("Build context", version.BuildContext())
 
-	collector, err := NewCollector(*address, *projectName, *insecure)
+	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, *insecure)
+
+	collector, err := NewCollector(*address, *projectName, tlsClientConfig)
 	if err != nil {
 		log.Fatal("error creating new collector instance: ", err)
 	}
