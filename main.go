@@ -94,7 +94,7 @@ func main() {
 	log.Info("Starting es-oneday-exporter", version.Info())
 	log.Info("Build context", version.BuildContext())
 
-	tlsClientConfig := createTLSConfig(*cacert, *clientkey, *clientcert, *insecure)
+	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, *insecure)
 
 	collector, err := NewCollector(*address, *projectName, tlsClientConfig)
 	if err != nil {
