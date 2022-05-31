@@ -49,6 +49,7 @@ var (
 			Default("false").Bool()
 
 	projectName = kingpin.Flag("project", "Project name").String()
+	repoName    = kingpin.Flag("repository", "Repository name").String()
 )
 
 func main() {
@@ -96,7 +97,7 @@ func main() {
 
 	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, *insecure)
 
-	collector, err := NewCollector(*address, *projectName, tlsClientConfig)
+	collector, err := NewCollector(*address, *projectName, *repoName, tlsClientConfig)
 	if err != nil {
 		log.Fatal("error creating new collector instance: ", err)
 	}

@@ -52,6 +52,26 @@ func (c *Client) GetIndices(s []string) (map[string]interface{}, error) {
 	return r["indices"], nil
 }
 
+func (c *Client) GetSnapshots(sr string) (map[string][]interface{}, error) {
+	log.Debug("Getting snapshots in: ", sr)
+	resp, err := c.es.Snapshot.Get(sr, []string{"*"})
+	if err != nil {
+		return nil, fmt.Errorf("error getting response: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("request failed: %v", resp.String())
+	}
+
+	var r map[string][]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
 func (c *Client) GetInfo() (map[string]interface{}, error) {
 	log.Debug("Getting cluster info")
 	resp, err := c.es.Info()

@@ -20,11 +20,13 @@ type Collector struct {
 	indexSize      *prometheus.Desc
 	indexGroupSize *prometheus.Desc
 	docsCount      *prometheus.Desc
+	snapshotsCount *prometheus.Desc
 }
 
-func NewCollector(address, project string, tlsClientConfig *tls.Config) (*Collector, error) {
+func NewCollector(address, project string, repo string, tlsClientConfig *tls.Config) (*Collector, error) {
 	namespace := "oneday_elasticsearch"
 	labels := []string{"index", "index_group"}
+	slabels := []string{"repository"}
 	labels_group := []string{"index_group"}
 
 	client, err := NewClient([]string{address}, tlsClientConfig)
@@ -58,6 +60,10 @@ func NewCollector(address, project string, tlsClientConfig *tls.Config) (*Collec
 			prometheus.BuildFQName(namespace, "indices_docs", "total"),
 			"Count of docs for each index to date", labels, constLabels,
 		),
+		snapshotsCount: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "snapshots_count", "total"),
+			"Count of snapshots", slabels, constLabels,
+		),
 	}, nil
 }
 
@@ -65,6 +71,7 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.indexSize
 	ch <- c.indexGroupSize
 	ch <- c.docsCount
+	ch <- c.snapshotsCount
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
@@ -108,5 +115,13 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 	for indexGroup, v := range indexGroupSize {
 		ch <- prometheus.MustNewConstMetric(c.indexGroupSize, prometheus.CounterValue, v, indexGroup)
+	}
+	if *repoName != "" {
+		snapshots, err := c.client.GetSnapshots(*repoName)
+		if err != nil {
+			log.Fatal("error getting snapshots count: ", err)
+		}
+		s := len(snapshots["snapshots"])
+		ch <- prometheus.MustNewConstMetric(c.snapshotsCount, prometheus.GaugeValue, float64(s), *repoName)
 	}
 }
