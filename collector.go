@@ -17,10 +17,12 @@ var (
 type Collector struct {
 	client *Client
 
-	indexSize      *prometheus.Desc
-	indexGroupSize *prometheus.Desc
-	docsCount      *prometheus.Desc
-	snapshotsCount *prometheus.Desc
+	indexSize        *prometheus.Desc
+	indexGroupSize   *prometheus.Desc
+	docsCount        *prometheus.Desc
+	snapshotsCount   *prometheus.Desc
+	fieldsCount      *prometheus.Desc
+	fieldsGroupCount *prometheus.Desc
 }
 
 func NewCollector(address, project string, repo string, tlsClientConfig *tls.Config) (*Collector, error) {
@@ -64,6 +66,14 @@ func NewCollector(address, project string, repo string, tlsClientConfig *tls.Con
 			prometheus.BuildFQName(namespace, "snapshots_count", "total"),
 			"Count of snapshots", slabels, constLabels,
 		),
+		fieldsCount: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "fields_count", "total"),
+			"Count of fields of each index to date", labels, constLabels,
+		),
+		fieldsGroupCount: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "fields_count", "total"),
+			"Count of fields of each index to date", labels_group, constLabels,
+		),
 	}, nil
 }
 
@@ -75,7 +85,9 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
-	indices, err := c.client.GetIndices([]string{fmt.Sprintf("*-%s", time.Now().Format("2006.01.02"))})
+	indicesPattern := fmt.Sprintf("*-%s", time.Now().Format("2006.01.02"))
+
+	indices, err := c.client.GetIndices([]string{indicesPattern})
 	if err != nil {
 		log.Fatal("error getting indices stats: ", err)
 	}
@@ -118,6 +130,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	for indexGroup, v := range indexGroupSize {
 		ch <- prometheus.MustNewConstMetric(c.indexGroupSize, prometheus.CounterValue, v, indexGroup)
 	}
+
 	if *repoName != "" {
 		snapshots, err := c.client.GetSnapshots(*repoName)
 		if err != nil {
@@ -125,5 +138,50 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		}
 		s := len(snapshots["snapshots"])
 		ch <- prometheus.MustNewConstMetric(c.snapshotsCount, prometheus.GaugeValue, float64(s), *repoName)
+	}
+
+	mapping, err := c.client.GetMapping([]string{indicesPattern})
+	if err != nil {
+		log.Fatal("error getting indices mapping: ", err)
+	}
+
+	fieldsGroupCount := make(map[string]float64)
+	for index, v := range mapping {
+		// Find date -Y.m.d (-2021.12.01) and replace
+		reFindDateTime := regexp.MustCompile(`-\d+.\d+.\d+$`)
+		// Create variable with index prefix
+		indexGrouplabel := strings.ToLower(reFindDateTime.ReplaceAllString(index, ""))
+
+		data := v.(map[string]interface{})
+
+		var count float64 = 0
+		countFields(data, &count)
+
+		ch <- prometheus.MustNewConstMetric(c.fieldsCount, prometheus.GaugeValue, count, index, indexGrouplabel)
+
+		fieldsGroupCount[indexGrouplabel] += count
+	}
+
+	for indexGroup, v := range fieldsGroupCount {
+		ch <- prometheus.MustNewConstMetric(c.fieldsGroupCount, prometheus.GaugeValue, v, indexGroup)
+	}
+}
+
+func countFields(m map[string]interface{}, count *float64) {
+	if v, ok := m["type"]; ok {
+		switch v := v.(type) {
+		case map[string]interface{}:
+			countFields(v, count)
+		case string:
+			*count++
+			return
+		}
+	}
+
+	for _, v := range m {
+		switch v := v.(type) {
+		case map[string]interface{}:
+			countFields(v, count)
+		}
 	}
 }
