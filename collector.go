@@ -90,8 +90,10 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		data := v.(map[string]interface{})
 		primaries := data["primaries"].(map[string]interface{})
 
-		//		docs := primaries["docs"].(map[string]interface{})
-		//		count := docs["count"].(float64)
+		if primaries["indexing"] == nil {
+			continue
+		}
+
 		docs := primaries["indexing"].(map[string]interface{})
 		count := docs["index_total"].(float64)
 		ch <- prometheus.MustNewConstMetric(c.docsCount, prometheus.GaugeValue, count, index, indexGrouplabel)
