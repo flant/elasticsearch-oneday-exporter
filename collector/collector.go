@@ -49,6 +49,11 @@ func NewCollector(logger *logrus.Logger, address, project string, repo string, t
 		return fmt.Errorf("error registering indices stats collector: %v", err)
 	}
 
+	err = prometheus.Register(NewSettingsCollector(logger, client, labels, labels_group, constLabels))
+	if err != nil {
+		return fmt.Errorf("error registering indices settings collector: %v", err)
+	}
+
 	if repo != "" {
 		err = prometheus.Register(NewSnapshotCollector(logger, client, repo, slabels, constLabels))
 		if err != nil {
