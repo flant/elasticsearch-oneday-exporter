@@ -61,7 +61,7 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 
 		data, ok := v.(map[string]interface{})
 		if !ok {
-			c.logger.Error("got invalid index stats for: %s", index)
+			c.logger.Errorf("got invalid index stats for: %s", index)
 			continue
 		}
 
@@ -70,7 +70,7 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 			if v, ok := count.(float64); ok {
 				ch <- prometheus.MustNewConstMetric(c.docsCount, prometheus.GaugeValue, v, index, indexGrouplabel)
 			} else {
-				c.logger.Error("got invalid %q value for: %s", path, index)
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, count)
 			}
 		} else {
 			c.logger.Errorf("%q was not found for: %s", path, index)
@@ -90,7 +90,7 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 				indexGroupLastTotalBytes[index] = v
 				indexGroupSize[indexGrouplabel] += lastIndexDifferenceBytes
 			} else {
-				c.logger.Error("got invalid %q value for: %s", path, index)
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, size)
 			}
 		} else {
 			c.logger.Errorf("%q was not found for: %s", path, index)

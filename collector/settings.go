@@ -69,7 +69,7 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
 			fieldsGroupLimit[indexGrouplabel] += v
 		} else {
-			c.logger.Error("got invalid %q value for: %s", path, index)
+			c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, limit)
 		}
 	}
 
