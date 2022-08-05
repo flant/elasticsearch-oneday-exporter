@@ -140,6 +140,7 @@ func setLogFormat(format string) error {
 	}
 
 	log.SetFormatter(formatter)
+	log.SetReportCaller(true)
 
 	return nil
 }

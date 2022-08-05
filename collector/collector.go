@@ -71,7 +71,7 @@ func indexGroupLabelFunc(index, today string) string {
 // Walk over the json map by path `f1.f2.f3` and return the last field
 func walk(m map[string]interface{}, path string) (interface{}, bool) {
 	p := strings.Split(path, ".")
-	for _, v := range p[:len(p)-2] {
+	for _, v := range p[:len(p)-1] {
 		if v, ok := m[v]; ok {
 			switch v := v.(type) {
 			case map[string]interface{}:
