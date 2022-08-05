@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/flant/elasticsearch-oneday-exporter/collector"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
@@ -97,12 +97,10 @@ func main() {
 
 	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, *insecure)
 
-	collector, err := NewCollector(*address, *projectName, *repoName, tlsClientConfig)
+	err := collector.NewCollector(log, *address, *projectName, *repoName, tlsClientConfig)
 	if err != nil {
-		log.Fatal("error creating new collector instance: ", err)
+		log.Fatalf("error creating new collector instance: %v", err)
 	}
-
-	prometheus.MustRegister(collector)
 
 	log.Info("Starting server on ", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
