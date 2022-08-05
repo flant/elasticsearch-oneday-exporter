@@ -1,8 +1,6 @@
 package collector
 
 import (
-	"regexp"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -15,8 +13,8 @@ type SettingsCollector struct {
 	fieldsGroupLimit *prometheus.Desc
 }
 
-func NewSettingsCollector(logger *logrus.Logger, client *Client, indicesPatternFunc func() string,
-	reFindDateTime *regexp.Regexp, labels, labels_group []string, constLabels prometheus.Labels) *SettingsCollector {
+func NewSettingsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string,
+	constLabels prometheus.Labels) *SettingsCollector {
 
 	return &SettingsCollector{
 		client: client,
