@@ -117,7 +117,7 @@ func (c *Client) GetMapping(s []string) (map[string]interface{}, error) {
 }
 
 func (c *Client) GetSettings(s []string) (map[string]interface{}, error) {
-	c.logger.Debug("Getting indices mapping: ", s)
+	c.logger.Debug("Getting indices settings: ", s)
 	resp, err := c.es.Indices.GetSettings(
 		c.es.Indices.GetSettings.WithIndex(s...),
 		c.es.Indices.GetSettings.WithIncludeDefaults(true),

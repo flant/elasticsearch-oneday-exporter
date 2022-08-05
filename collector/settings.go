@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -65,9 +67,13 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 
-		if v, ok := limit.(float64); ok {
-			ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
-			fieldsGroupLimit[indexGrouplabel] += v
+		if s, ok := limit.(string); ok {
+			if v, err := strconv.ParseFloat(s, 64); err == nil {
+				ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
+				fieldsGroupLimit[indexGrouplabel] += v
+			} else {
+				c.logger.Errorf("error parsing %q value for: %s: %v ", path, index, err)
+			}
 		} else {
 			c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, limit)
 		}
