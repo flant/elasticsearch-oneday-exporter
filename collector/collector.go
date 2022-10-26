@@ -100,7 +100,8 @@ func countFields(m map[string]interface{}, count float64) float64 {
 		case map[string]interface{}:
 			count = countFields(v, count)
 		case string:
-			return count + 1
+			delete(m, "type")
+			count++
 		}
 	}
 
