@@ -6,19 +6,20 @@ import (
 )
 
 type FieldsCollector struct {
-	client *Client
-	logger *logrus.Logger
-
+	client           *Client
+	logger           *logrus.Logger
+	datePattern      string
 	fieldsCount      *prometheus.Desc
 	fieldsGroupCount *prometheus.Desc
 }
 
-func NewFieldsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string,
+func NewFieldsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
 	constLabels prometheus.Labels) *FieldsCollector {
 
 	return &FieldsCollector{
-		client: client,
-		logger: logger,
+		client:      client,
+		logger:      logger,
+		datePattern: datepattern,
 		fieldsCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "fields_count", "total"),
 			"Count of fields of each index to date", labels, constLabels,
@@ -36,7 +37,7 @@ func (c *FieldsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *FieldsCollector) Collect(ch chan<- prometheus.Metric) {
-	today := todayFunc()
+	today := todayFunc(c.datePattern)
 	indicesPattern := indicesPatternFunc(today)
 
 	mapping, err := c.client.GetMapping([]string{indicesPattern})

@@ -13,17 +13,20 @@ type IndicesCollector struct {
 	client *Client
 	logger *logrus.Logger
 
+	datePattern string
+
 	indexSize      *prometheus.Desc
 	indexGroupSize *prometheus.Desc
 	docsCount      *prometheus.Desc
 }
 
-func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string,
+func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
 	constLabels prometheus.Labels) *IndicesCollector {
 
 	return &IndicesCollector{
-		client: client,
-		logger: logger,
+		client:      client,
+		logger:      logger,
+		datePattern: datepattern,
 		indexSize: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"),
 			"Size of each index to date", labels, constLabels,
@@ -46,7 +49,7 @@ func (c *IndicesCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
-	today := todayFunc()
+	today := todayFunc(c.datePattern)
 	indicesPattern := indicesPatternFunc(today)
 
 	indices, err := c.client.GetIndices([]string{indicesPattern})

@@ -32,6 +32,9 @@ var (
 		"Set the log format. Valid formats: [json, text]",
 	).Default("json").Enum("json", "text")
 
+	datePattern = kingpin.Flag("date.pattern", "Date pattern for selecting indices.").
+			Default("2006.01.02").String()
+
 	listenAddress = kingpin.Flag("telemetry.addr", "Listen on host:port.").
 			Default(":9101").String()
 	metricsPath = kingpin.Flag("telemetry.path", "URL path for surfacing collected metrics.").
@@ -97,7 +100,7 @@ func main() {
 
 	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, *insecure)
 
-	err := collector.NewCollector(log, *address, *projectName, *repoName, tlsClientConfig)
+	err := collector.NewCollector(log, *address, *projectName, *repoName, *datePattern, tlsClientConfig)
 	if err != nil {
 		log.Fatalf("error creating new collector instance: %v", err)
 	}

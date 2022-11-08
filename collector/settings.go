@@ -11,16 +11,19 @@ type SettingsCollector struct {
 	client *Client
 	logger *logrus.Logger
 
+	datePattern string
+
 	fieldsLimit      *prometheus.Desc
 	fieldsGroupLimit *prometheus.Desc
 }
 
-func NewSettingsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string,
+func NewSettingsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
 	constLabels prometheus.Labels) *SettingsCollector {
 
 	return &SettingsCollector{
-		client: client,
-		logger: logger,
+		client:      client,
+		logger:      logger,
+		datePattern: datepattern,
 		fieldsLimit: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "fields_limit", "total"),
 			"Total limit of fields of each index to date", labels, constLabels,
@@ -38,7 +41,7 @@ func (c *SettingsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
-	today := todayFunc()
+	today := todayFunc(c.datePattern)
 	indicesPattern := indicesPatternFunc(today)
 
 	settings, err := c.client.GetSettings([]string{indicesPattern})

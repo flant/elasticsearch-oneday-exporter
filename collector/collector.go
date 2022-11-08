@@ -20,7 +20,7 @@ var (
 	slabels      = []string{"repository"}
 )
 
-func NewCollector(logger *logrus.Logger, address, project string, repo string, tlsClientConfig *tls.Config) error {
+func NewCollector(logger *logrus.Logger, address, project string, repo string, datepattern string, tlsClientConfig *tls.Config) error {
 	client, err := NewClient(logger, []string{address}, tlsClientConfig)
 	if err != nil {
 		return fmt.Errorf("error creating the client: %v", err)
@@ -39,17 +39,17 @@ func NewCollector(logger *logrus.Logger, address, project string, repo string, t
 		"project": project,
 	}
 
-	err = prometheus.Register(NewFieldsCollector(logger, client, labels, labels_group, constLabels))
+	err = prometheus.Register(NewFieldsCollector(logger, client, labels, labels_group, datepattern, constLabels))
 	if err != nil {
 		return fmt.Errorf("error registering index fields count collector: %v", err)
 	}
 
-	err = prometheus.Register(NewIndicesCollector(logger, client, labels, labels_group, constLabels))
+	err = prometheus.Register(NewIndicesCollector(logger, client, labels, labels_group, datepattern, constLabels))
 	if err != nil {
 		return fmt.Errorf("error registering indices stats collector: %v", err)
 	}
 
-	err = prometheus.Register(NewSettingsCollector(logger, client, labels, labels_group, constLabels))
+	err = prometheus.Register(NewSettingsCollector(logger, client, labels, labels_group, datepattern, constLabels))
 	if err != nil {
 		return fmt.Errorf("error registering indices settings collector: %v", err)
 	}
@@ -64,7 +64,9 @@ func NewCollector(logger *logrus.Logger, address, project string, repo string, t
 	return nil
 }
 
-func todayFunc() string { return time.Now().Format("2006.01.02") }
+func todayFunc(dp string) string {
+	return time.Now().Format(dp)
+}
 
 func indicesPatternFunc(today string) string { return fmt.Sprintf("*-%s", today) }
 
