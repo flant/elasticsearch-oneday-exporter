@@ -16,6 +16,7 @@ type IndicesCollector struct {
 	datePattern string
 
 	indexSize      *prometheus.Desc
+	indexTotalSize *prometheus.Desc
 	indexGroupSize *prometheus.Desc
 	docsCount      *prometheus.Desc
 }
@@ -31,6 +32,10 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 			prometheus.BuildFQName(namespace, "indices_store", "size_bytes_primary"),
 			"Size of each index to date", labels, constLabels,
 		),
+		indexTotalSize: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices_store", "size_bytes_total"),
+			"Total (primary + all replicas) size of each index to date", labels, constLabels,
+		),
 		docsCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "indices_docs", "total"),
 			"Count of docs for each index to date", labels, constLabels,
@@ -44,6 +49,7 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 
 func (c *IndicesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.indexSize
+	ch <- c.indexTotalSize
 	ch <- c.docsCount
 	ch <- c.indexGroupSize
 }
@@ -98,6 +104,18 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 		} else {
 			c.logger.Errorf("%q was not found for: %s", path, index)
 		}
+
+		path = "total.store.size_in_bytes"
+		if size, ok := walk(data, path); ok {
+			if v, ok := size.(float64); ok {
+				ch <- prometheus.MustNewConstMetric(c.indexTotalSize, prometheus.GaugeValue, v, index, indexGrouplabel)
+			} else {
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, size)
+			}
+		} else {
+			c.logger.Errorf("%q was not found for: %s", path, index)
+		}
+
 	}
 
 	for indexGroup, v := range indexGroupSize {
