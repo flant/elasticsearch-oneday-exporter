@@ -1,8 +1,6 @@
 package collector
 
 import (
-	"fmt"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -16,8 +14,6 @@ type ClusterSettingsCollector struct {
 
 func NewClusterSettingsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
 	constLabels prometheus.Labels) *ClusterSettingsCollector {
-
-	fmt.Printf("labels: %v\n\n\nconstLabels: %v\n", labels, constLabels)
 
 	return &ClusterSettingsCollector{
 		client: client,
@@ -44,5 +40,4 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "persistent")
 	}
-
 }
