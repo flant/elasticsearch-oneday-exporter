@@ -18,6 +18,7 @@ var (
 	labels       = []string{"index", "index_group"}
 	labels_group = []string{"index_group"}
 	slabels      = []string{"repository"}
+	clabels      = []string{"section"}
 )
 
 func NewCollector(logger *logrus.Logger, address, project string, repo string, datepattern string, tlsClientConfig *tls.Config) error {
@@ -50,6 +51,11 @@ func NewCollector(logger *logrus.Logger, address, project string, repo string, d
 	}
 
 	err = prometheus.Register(NewSettingsCollector(logger, client, labels, labels_group, datepattern, constLabels))
+	if err != nil {
+		return fmt.Errorf("error registering indices settings collector: %v", err)
+	}
+
+	err = prometheus.Register(NewClusterSettingsCollector(logger, client, clabels, labels_group, datepattern, constLabels))
 	if err != nil {
 		return fmt.Errorf("error registering indices settings collector: %v", err)
 	}
