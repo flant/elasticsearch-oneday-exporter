@@ -90,7 +90,7 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 		path_block := "index.blocks.read_only_allow_delete"
 		block, ok := walk(data, "settings."+path_block)
 		if !ok {
-			c.logger.Errorf("%q was not found for: %s", path_block, index)
+			ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 0, index, indexGrouplabel)
 			continue
 		}
 
