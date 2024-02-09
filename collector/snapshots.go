@@ -8,7 +8,7 @@ import (
 
 type SnapshotCollector struct {
 	client *Client
-	logger logrus.Logger
+	logger *logrus.Logger
 
 	repo string
 
@@ -20,7 +20,7 @@ func NewSnapshotCollector(logger *logrus.Logger, client *Client, repo string, la
 
 	return &SnapshotCollector{
 		client: client,
-		logger: *logger,
+		logger: logger,
 		repo:   repo,
 		snapshotsCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "snapshots_count", "total"),

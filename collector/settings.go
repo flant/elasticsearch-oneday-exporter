@@ -68,7 +68,7 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 
 		data, ok := v.(map[string]interface{})
 		if !ok {
-			c.logger.Error("got invalid index setttings for: %s", index)
+			c.logger.Errorf("got invalid index setttings for: %s", index)
 			continue
 		}
 
