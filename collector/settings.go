@@ -16,6 +16,7 @@ type SettingsCollector struct {
 	fieldsLimit         *prometheus.Desc
 	fieldsGroupLimit    *prometheus.Desc
 	readOnlyAllowDelete *prometheus.Desc
+	readOnly            *prometheus.Desc
 }
 
 func NewSettingsCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
@@ -37,6 +38,10 @@ func NewSettingsCollector(logger *logrus.Logger, client *Client, labels, labels_
 			prometheus.BuildFQName(namespace, "read_only_allow_delete", "total"),
 			"State of the read_only_allow_delete field, which means that the index is in readonly mode", labels, constLabels,
 		),
+		readOnly: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "read_only", "total"),
+			"State of the read_only field, which means that the index is in readonly mode", labels, constLabels,
+		),
 	}
 }
 
@@ -44,6 +49,7 @@ func (c *SettingsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.fieldsLimit
 	ch <- c.fieldsGroupLimit
 	ch <- c.readOnlyAllowDelete
+	ch <- c.readOnly
 }
 
 func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -112,6 +118,31 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 				}
 			} else {
 				c.logger.Errorf("got invalid %q value for: %s value: %#v", path_block, index, limit)
+			}
+		}
+
+		skipFlag = false
+
+		path_roblock := "index.blocks.read_only"
+		roblock, ok := walk(data, "settings."+path_roblock)
+		if !ok {
+			ch <- prometheus.MustNewConstMetric(c.readOnly, prometheus.GaugeValue, 0, index, indexGrouplabel)
+			skipFlag = true
+		}
+
+		if !skipFlag {
+			if s, ok := roblock.(string); ok {
+				if v, err := strconv.ParseBool(s); err == nil {
+					if v {
+						ch <- prometheus.MustNewConstMetric(c.readOnly, prometheus.GaugeValue, 1, index, indexGrouplabel)
+					} else {
+						ch <- prometheus.MustNewConstMetric(c.readOnly, prometheus.GaugeValue, 0, index, indexGrouplabel)
+					}
+				} else {
+					c.logger.Errorf("error parsing %q value for: %s: %v ", path_roblock, index, err)
+				}
+			} else {
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path_roblock, index, limit)
 			}
 		}
 	}
