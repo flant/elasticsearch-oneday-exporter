@@ -66,46 +66,53 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
+		skipFlag := false
+
 		path_limit := "index.mapping.total_fields.limit"
 		limit, ok := walk(data, "settings."+path_limit)
 		if !ok {
 			limit, ok = walk(data, "defaults."+path_limit)
 			if !ok {
 				c.logger.Errorf("%q was not found for: %s", path_limit, index)
-				continue
+				skipFlag = true
+			}
+		}
+		if !skipFlag {
+			if s, ok := limit.(string); ok {
+				if v, err := strconv.ParseFloat(s, 64); err == nil {
+					ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
+					fieldsGroupLimit[indexGrouplabel] += v
+				} else {
+					c.logger.Errorf("error parsing %q value for: %s: %v ", path_limit, index, err)
+				}
+			} else {
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path_limit, index, limit)
 			}
 		}
 
-		if s, ok := limit.(string); ok {
-			if v, err := strconv.ParseFloat(s, 64); err == nil {
-				ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
-				fieldsGroupLimit[indexGrouplabel] += v
-			} else {
-				c.logger.Errorf("error parsing %q value for: %s: %v ", path_limit, index, err)
-			}
-		} else {
-			c.logger.Errorf("got invalid %q value for: %s value: %#v", path_limit, index, limit)
-		}
+		skipFlag = false
 
 		path_block := "index.blocks.read_only_allow_delete"
 		block, ok := walk(data, "settings."+path_block)
 		if !ok {
 			ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 0, index, indexGrouplabel)
-			continue
+			skipFlag = true
 		}
 
-		if s, ok := block.(string); ok {
-			if v, err := strconv.ParseBool(s); err == nil {
-				if v {
-					ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 1, index, indexGrouplabel)
+		if !skipFlag {
+			if s, ok := block.(string); ok {
+				if v, err := strconv.ParseBool(s); err == nil {
+					if v {
+						ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 1, index, indexGrouplabel)
+					} else {
+						ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 0, index, indexGrouplabel)
+					}
 				} else {
-					ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 0, index, indexGrouplabel)
+					c.logger.Errorf("error parsing %q value for: %s: %v ", path_block, index, err)
 				}
 			} else {
-				c.logger.Errorf("error parsing %q value for: %s: %v ", path_block, index, err)
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path_block, index, limit)
 			}
-		} else {
-			c.logger.Errorf("got invalid %q value for: %s value: %#v", path_block, index, limit)
 		}
 	}
 
