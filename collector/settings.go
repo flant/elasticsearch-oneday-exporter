@@ -72,18 +72,14 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
-		skipFlag := false
-
 		path_limit := "index.mapping.total_fields.limit"
 		limit, ok := walk(data, "settings."+path_limit)
 		if !ok {
 			limit, ok = walk(data, "defaults."+path_limit)
 			if !ok {
 				c.logger.Errorf("%q was not found for: %s", path_limit, index)
-				skipFlag = true
 			}
-		}
-		if !skipFlag {
+		} else {
 			if s, ok := limit.(string); ok {
 				if v, err := strconv.ParseFloat(s, 64); err == nil {
 					ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
@@ -96,16 +92,11 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 
-		skipFlag = false
-
 		path_block := "index.blocks.read_only_allow_delete"
 		block, ok := walk(data, "settings."+path_block)
 		if !ok {
 			ch <- prometheus.MustNewConstMetric(c.readOnlyAllowDelete, prometheus.GaugeValue, 0, index, indexGrouplabel)
-			skipFlag = true
-		}
-
-		if !skipFlag {
+		} else {
 			if s, ok := block.(string); ok {
 				if v, err := strconv.ParseBool(s); err == nil {
 					if v {
@@ -121,16 +112,11 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 
-		skipFlag = false
-
 		path_roblock := "index.blocks.read_only"
 		roblock, ok := walk(data, "settings."+path_roblock)
 		if !ok {
 			ch <- prometheus.MustNewConstMetric(c.readOnly, prometheus.GaugeValue, 0, index, indexGrouplabel)
-			skipFlag = true
-		}
-
-		if !skipFlag {
+		} else {
 			if s, ok := roblock.(string); ok {
 				if v, err := strconv.ParseBool(s); err == nil {
 					if v {
