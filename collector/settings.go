@@ -72,14 +72,18 @@ func (c *SettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
+		skipFlag := false
+
 		path_limit := "index.mapping.total_fields.limit"
 		limit, ok := walk(data, "settings."+path_limit)
 		if !ok {
 			limit, ok = walk(data, "defaults."+path_limit)
 			if !ok {
 				c.logger.Errorf("%q was not found for: %s", path_limit, index)
+				skipFlag = true
 			}
-		} else {
+		}
+		if !skipFlag {
 			if s, ok := limit.(string); ok {
 				if v, err := strconv.ParseFloat(s, 64); err == nil {
 					ch <- prometheus.MustNewConstMetric(c.fieldsLimit, prometheus.GaugeValue, v, index, indexGrouplabel)
