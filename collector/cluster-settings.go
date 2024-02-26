@@ -1,8 +1,6 @@
 package collector
 
 import (
-	"fmt"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -37,8 +35,6 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 		c.logger.Fatalf("error getting indices settings: %v", err)
 	}
 
-	fmt.Printf("%v\n", settings["persistent"])
-
 	if len(settings) == 0 {
 		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
 		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
@@ -53,9 +49,5 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 		} else {
 			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "transient")
 		}
-		/*	for k := range settings {
-				ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, k)
-			}
-		*/
 	}
 }
