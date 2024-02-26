@@ -143,7 +143,7 @@ func (c *Client) GetClusterSettings() (map[string]interface{}, error) {
 	c.logger.Debug("Getting cluster settings")
 	resp, err := c.es.Cluster.GetSettings(
 		c.es.Cluster.GetSettings.WithIncludeDefaults(true),
-		c.es.Cluster.GetSettings.WithFilterPath("persistent.cluster.routing.allocation.exclude"),
+		c.es.Cluster.GetSettings.WithFilterPath("*.cluster.routing.allocation.exclude"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response: %s", err)
