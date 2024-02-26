@@ -37,7 +37,17 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if len(settings) == 0 {
 		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
+		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
 	} else {
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "persistent")
+		if settings["persistent"] == nil {
+			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
+		} else {
+			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "persistent")
+		}
+		if settings["transient"] == nil {
+			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
+		} else {
+			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "transient")
+		}
 	}
 }
