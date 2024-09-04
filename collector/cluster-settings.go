@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -64,8 +66,13 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	path := "persistent.cluster.max_shards_per_node"
 	if count, ok := walk(settings, path); ok {
-		if v, ok := count.(float64); ok {
-			ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, v)
+		if v, ok := count.(string); ok {
+			maxShardsPerNode, err := strconv.ParseInt(v, 10, 64)
+			if err == nil {
+				ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+			} else {
+				c.logger.Errorf("got invalid %q value: %#v", path, count)
+			}
 		} else {
 			c.logger.Errorf("got invalid %q value: %#v", path, count)
 		}
