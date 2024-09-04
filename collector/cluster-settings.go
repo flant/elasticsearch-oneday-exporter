@@ -63,7 +63,21 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 		if v, ok := count.(string); ok {
 			maxShardsPerNode, err := strconv.ParseInt(v, 10, 64)
 			if err == nil {
-				ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+				path_transient := "transient.cluster.max_shards_per_node"
+				if count_transient, ok := walk(settings, path_transient); ok {
+					if v, ok := count_transient.(string); ok {
+						maxShardsPerNodeTransient, err := strconv.ParseInt(v, 10, 64)
+						if err == nil {
+							ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNodeTransient))
+						} else {
+							ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+						}
+					} else {
+						ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+					}
+				} else {
+					ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+				}
 			} else {
 				c.logger.Errorf("got invalid %q value: %#v", path, count)
 			}
