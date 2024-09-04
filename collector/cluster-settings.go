@@ -66,16 +66,16 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	path = "persistent.routing.allocation.total_shards_per_node"
 	if _, ok := walk(settings, path); ok {
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "persistent")
+		ch <- prometheus.MustNewConstMetric(c.totalShardsPerNodeExists, prometheus.CounterValue, 1, "persistent")
 	} else {
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
+		ch <- prometheus.MustNewConstMetric(c.totalShardsPerNodeExists, prometheus.CounterValue, 0, "persistent")
 	}
 
 	path = "transient.routing.allocation.total_shards_per_node"
 	if _, ok := walk(settings, path); ok {
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "transient")
+		ch <- prometheus.MustNewConstMetric(c.totalShardsPerNodeExists, prometheus.CounterValue, 1, "transient")
 	} else {
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
+		ch <- prometheus.MustNewConstMetric(c.totalShardsPerNodeExists, prometheus.CounterValue, 0, "transient")
 	}
 
 	path = "persistent.cluster.max_shards_per_node"
