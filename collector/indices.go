@@ -19,6 +19,7 @@ type IndicesCollector struct {
 	indexTotalSize *prometheus.Desc
 	indexGroupSize *prometheus.Desc
 	docsCount      *prometheus.Desc
+	shardsDocs     *prometheus.Desc
 }
 
 func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
@@ -44,6 +45,10 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 			prometheus.BuildFQName(namespace, "indices_group_store", "size_bytes"),
 			"Total size of each index group to date", labels_group, constLabels,
 		),
+		shardsDocs: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices", "shards_docs"),
+			"Count of documents on this shard", labels, constLabels,
+		),
 	}
 }
 
@@ -52,6 +57,7 @@ func (c *IndicesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.indexTotalSize
 	ch <- c.docsCount
 	ch <- c.indexGroupSize
+	ch <- c.shardsDocs
 }
 
 func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
@@ -111,6 +117,17 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 				ch <- prometheus.MustNewConstMetric(c.indexTotalSize, prometheus.GaugeValue, v, index, indexGrouplabel)
 			} else {
 				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, size)
+			}
+		} else {
+			c.logger.Errorf("%q was not found for: %s", path, index)
+		}
+
+		path = "primaries.docs.count"
+		if count, ok := walk(data, path); ok {
+			if v, ok := count.(float64); ok {
+				ch <- prometheus.MustNewConstMetric(c.shardsDocs, prometheus.GaugeValue, v, index, indexGrouplabel)
+			} else {
+				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, count)
 			}
 		} else {
 			c.logger.Errorf("%q was not found for: %s", path, index)
