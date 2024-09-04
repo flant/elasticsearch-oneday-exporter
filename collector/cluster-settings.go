@@ -33,7 +33,7 @@ func NewClusterSettingsCollector(logger *logrus.Logger, client *Client, labels, 
 		maxShardsPerNode: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "clustersettings_stats", "max_shards_per_node"),
 			"Current maximum number of shards per node setting.",
-			labels, nil,
+			labels, constLabels,
 		),
 	}
 }
@@ -88,15 +88,15 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 					if v, ok := count_transient.(string); ok {
 						maxShardsPerNodeTransient, err := strconv.ParseInt(v, 10, 64)
 						if err == nil {
-							ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNodeTransient))
+							ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNodeTransient), "transient")
 						} else {
-							ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+							ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode), "persistent")
 						}
 					} else {
-						ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+						ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode), "persistent")
 					}
 				} else {
-					ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode))
+					ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, float64(maxShardsPerNode), "persistent")
 				}
 			} else {
 				c.logger.Errorf("got invalid %q value: %#v", path, count)
@@ -105,7 +105,7 @@ func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
 			c.logger.Errorf("got invalid %q value: %#v", path, count)
 		}
 	} else {
-		ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, 1000.0)
+		ch <- prometheus.MustNewConstMetric(c.maxShardsPerNode, prometheus.GaugeValue, 1000.0, "default")
 	}
 
 }
