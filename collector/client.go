@@ -139,34 +139,10 @@ func (c *Client) GetSettings(s []string) (map[string]interface{}, error) {
 	return r, nil
 }
 
-func (c *Client) GetClusterSettingsExclude() (map[string]interface{}, error) {
-	c.logger.Debug("Getting cluster settings")
-	resp, err := c.es.Cluster.GetSettings(
-		c.es.Cluster.GetSettings.WithIncludeDefaults(true),
-		c.es.Cluster.GetSettings.WithFilterPath("*.cluster.routing.allocation.exclude"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error getting response: %s", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return nil, fmt.Errorf("request failed: %v", resp.String())
-	}
-
-	var r map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}
-
 func (c *Client) GetClusterSettings() (map[string]interface{}, error) {
 	c.logger.Debug("Getting cluster settings")
 	resp, err := c.es.Cluster.GetSettings(
-		c.es.Cluster.GetSettings.WithIncludeDefaults(true),
-		c.es.Cluster.GetSettings.WithFilterPath("persistent.cluster"),
+		c.es.Cluster.GetSettings.WithIncludeDefaults(false),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response: %s", err)

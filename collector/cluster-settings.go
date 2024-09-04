@@ -39,32 +39,26 @@ func (c *ClusterSettingsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *ClusterSettingsCollector) Collect(ch chan<- prometheus.Metric) {
-	settingsExclude, err := c.client.GetClusterSettingsExclude()
-	if err != nil {
-		c.logger.Fatalf("error getting indices settings with exclude section: %v", err)
-	}
-
-	if len(settingsExclude) == 0 {
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
-		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
-	} else {
-		if settingsExclude["persistent"] == nil {
-			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
-		} else {
-			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "persistent")
-		}
-		if settingsExclude["transient"] == nil {
-			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
-		} else {
-			ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "transient")
-		}
-	}
 	settings, err := c.client.GetClusterSettings()
 	if err != nil {
 		c.logger.Fatalf("error getting indices settings: %v", err)
 	}
 
-	path := "persistent.cluster.max_shards_per_node"
+	path := "persistent.cluster.routing.allocation.exclude"
+	if _, ok := walk(settings, path); ok {
+		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "persistent")
+	} else {
+		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "persistent")
+	}
+
+	path = "transient.cluster.routing.allocation.exclude"
+	if _, ok := walk(settings, path); ok {
+		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 1, "transient")
+	} else {
+		ch <- prometheus.MustNewConstMetric(c.excludeExists, prometheus.CounterValue, 0, "transient")
+	}
+
+	path = "persistent.cluster.max_shards_per_node"
 	if count, ok := walk(settings, path); ok {
 		if v, ok := count.(string); ok {
 			maxShardsPerNode, err := strconv.ParseInt(v, 10, 64)
