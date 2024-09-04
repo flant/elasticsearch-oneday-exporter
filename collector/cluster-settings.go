@@ -33,7 +33,7 @@ func NewClusterSettingsCollector(logger *logrus.Logger, client *Client, labels, 
 		maxShardsPerNode: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "clustersettings_stats", "max_shards_per_node"),
 			"Current maximum number of shards per node setting.",
-			nil, nil,
+			labels, nil,
 		),
 	}
 }
