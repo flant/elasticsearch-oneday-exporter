@@ -27,7 +27,7 @@ func NewClusterSettingsCollector(logger *logrus.Logger, client *Client, labels, 
 			"Exclude exists in cluster settings", labels, constLabels,
 		),
 		totalShardsPerNodeExists: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "exclude", "exists"),
+			prometheus.BuildFQName(namespace, "total_shards_per_node", "exists"),
 			"total_shards_per_node exists in cluster settings", labels, constLabels,
 		),
 		maxShardsPerNode: prometheus.NewDesc(
