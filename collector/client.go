@@ -15,6 +15,12 @@ type Client struct {
 	logger *logrus.Logger
 }
 
+type IndexHealthInfo struct {
+	Status           string `json:"status"`
+	NumberOfShards   int    `json:"number_of_shards"`
+	NumberOfReplicas int    `json:"number_of_replicas"`
+}
+
 func NewClient(logger *logrus.Logger, addresses []string, tlsClientConfig *tls.Config) (*Client, error) {
 	cfg := elasticsearch.Config{
 		Addresses: addresses,
@@ -161,7 +167,7 @@ func (c *Client) GetClusterSettings() (map[string]interface{}, error) {
 	return r, nil
 }
 
-func (c *Client) GetIndicesHealth(indices []string) (map[string]string, error) {
+func (c *Client) GetIndicesHealth(indices []string) (map[string]IndexHealthInfo, error) {
 	resp, err := c.es.Cluster.Health(
 		c.es.Cluster.Health.WithIndex(indices...),
 		c.es.Cluster.Health.WithLevel("indices"),
@@ -170,23 +176,14 @@ func (c *Client) GetIndicesHealth(indices []string) (map[string]string, error) {
 		return nil, fmt.Errorf("error getting cluster health: %s", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.IsError() {
 		return nil, fmt.Errorf("health request failed: %s", resp.String())
 	}
-
 	var body struct {
-		Indices map[string]struct {
-			Status string `json:"status"`
-		} `json:"indices"`
+		Indices map[string]IndexHealthInfo `json:"indices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, err
 	}
-
-	result := make(map[string]string, len(body.Indices))
-	for idx, info := range body.Indices {
-		result[idx] = info.Status
-	}
-	return result, nil
+	return body.Indices, nil
 }

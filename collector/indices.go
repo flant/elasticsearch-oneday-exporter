@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -75,17 +77,13 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 		c.logger.Fatalf("error getting indices stats: %v", err)
 	}
 
-	var names []string
-	for idx := range indices {
-		names = append(names, idx)
-	}
 	healthMap, err := c.client.GetIndicesHealth([]string{"*"})
 	if err != nil {
 		c.logger.Errorf("error getting indices health: %v", err)
 	} else {
-		for idx, status := range healthMap {
+		for idx, info := range healthMap {
 			var val float64
-			switch status {
+			switch info.Status {
 			case "green":
 				val = 0
 			case "yellow":
@@ -96,7 +94,14 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 			group := indexGroupLabelFunc(idx, today)
-			ch <- prometheus.MustNewConstMetric(c.indexHealth, prometheus.GaugeValue, val, idx, group)
+			ch <- prometheus.MustNewConstMetric(
+				c.indexHealth,
+				prometheus.GaugeValue,
+				val,
+				idx,
+				group,
+				strconv.Itoa(info.NumberOfReplicas),
+			)
 		}
 	}
 
