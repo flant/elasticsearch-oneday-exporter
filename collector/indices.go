@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -20,9 +22,10 @@ type IndicesCollector struct {
 	indexGroupSize *prometheus.Desc
 	docsCount      *prometheus.Desc
 	shardsDocs     *prometheus.Desc
+	indexHealth    *prometheus.Desc
 }
 
-func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
+func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, labels_health []string, datepattern string,
 	constLabels prometheus.Labels) *IndicesCollector {
 
 	return &IndicesCollector{
@@ -49,6 +52,10 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 			prometheus.BuildFQName(namespace, "indices", "shards_docs"),
 			"Count of documents on this shard", labels, constLabels,
 		),
+		indexHealth: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices_health", "status"),
+			"Health status of each index: green=0,yellow=1,red=2", labels_health, constLabels,
+		),
 	}
 }
 
@@ -58,6 +65,7 @@ func (c *IndicesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.docsCount
 	ch <- c.indexGroupSize
 	ch <- c.shardsDocs
+	ch <- c.indexHealth
 }
 
 func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
@@ -67,6 +75,32 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 	indices, err := c.client.GetIndices([]string{indicesPattern})
 	if err != nil {
 		c.logger.Fatalf("error getting indices stats: %v", err)
+	}
+
+	healthMap, err := c.client.GetIndicesHealth([]string{"*"})
+	if err != nil {
+		c.logger.Errorf("error getting indices health: %v", err)
+	} else {
+		for idx, info := range healthMap {
+			var val float64
+			switch info.Status {
+			case "green":
+				val = 0
+			case "yellow":
+				val = 1
+			case "red":
+				val = 2
+			default:
+				continue
+			}
+			ch <- prometheus.MustNewConstMetric(
+				c.indexHealth,
+				prometheus.GaugeValue,
+				val,
+				idx,
+				strconv.Itoa(info.NumberOfReplicas),
+			)
+		}
 	}
 
 	indexGroupSize := make(map[string]float64, len(indices))

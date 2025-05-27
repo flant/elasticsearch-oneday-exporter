@@ -15,10 +15,11 @@ const (
 )
 
 var (
-	labels       = []string{"index", "index_group"}
-	labels_group = []string{"index_group"}
-	slabels      = []string{"repository"}
-	clabels      = []string{"section"}
+	labels        = []string{"index", "index_group"}
+	labels_group  = []string{"index_group"}
+	labels_health = []string{"index", "replicas"}
+	slabels       = []string{"repository"}
+	clabels       = []string{"section"}
 )
 
 func NewCollector(logger *logrus.Logger, address, project string, repo string, datepattern string, tlsClientConfig *tls.Config) error {
@@ -45,7 +46,7 @@ func NewCollector(logger *logrus.Logger, address, project string, repo string, d
 		return fmt.Errorf("error registering index fields count collector: %v", err)
 	}
 
-	err = prometheus.Register(NewIndicesCollector(logger, client, labels, labels_group, datepattern, constLabels))
+	err = prometheus.Register(NewIndicesCollector(logger, client, labels, labels_group, labels_health, datepattern, constLabels))
 	if err != nil {
 		return fmt.Errorf("error registering indices stats collector: %v", err)
 	}
