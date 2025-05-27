@@ -79,7 +79,7 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 	for idx := range indices {
 		names = append(names, idx)
 	}
-	healthMap, err := c.client.GetIndicesHealth(names)
+	healthMap, err := c.client.GetIndicesHealth([]string{"*"})
 	if err != nil {
 		c.logger.Errorf("error getting indices health: %v", err)
 	} else {
