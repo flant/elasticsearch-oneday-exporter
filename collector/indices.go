@@ -25,7 +25,7 @@ type IndicesCollector struct {
 	indexHealth    *prometheus.Desc
 }
 
-func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
+func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, labels_health []string, datepattern string,
 	constLabels prometheus.Labels) *IndicesCollector {
 
 	return &IndicesCollector{
@@ -54,7 +54,7 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 		),
 		indexHealth: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "indices_health", "status"),
-			"Health status of each index: green=0,yellow=1,red=2", labels, constLabels,
+			"Health status of each index: green=0,yellow=1,red=2", labels_health, constLabels,
 		),
 	}
 }
