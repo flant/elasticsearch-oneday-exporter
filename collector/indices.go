@@ -93,13 +93,11 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 			default:
 				continue
 			}
-			group := indexGroupLabelFunc(idx, today)
 			ch <- prometheus.MustNewConstMetric(
 				c.indexHealth,
 				prometheus.GaugeValue,
 				val,
 				idx,
-				group,
 				strconv.Itoa(info.NumberOfReplicas),
 			)
 		}
