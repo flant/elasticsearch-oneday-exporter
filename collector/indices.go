@@ -20,6 +20,7 @@ type IndicesCollector struct {
 	indexGroupSize *prometheus.Desc
 	docsCount      *prometheus.Desc
 	shardsDocs     *prometheus.Desc
+	indexHealth    *prometheus.Desc
 }
 
 func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, datepattern string,
@@ -49,6 +50,10 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 			prometheus.BuildFQName(namespace, "indices", "shards_docs"),
 			"Count of documents on this shard", labels, constLabels,
 		),
+		indexHealth: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices_health", "status"),
+			"Health status of each index: green=0,yellow=1,red=2", labels, constLabels,
+		),
 	}
 }
 
@@ -58,6 +63,7 @@ func (c *IndicesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.docsCount
 	ch <- c.indexGroupSize
 	ch <- c.shardsDocs
+	ch <- c.indexHealth
 }
 
 func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
@@ -67,6 +73,31 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 	indices, err := c.client.GetIndices([]string{indicesPattern})
 	if err != nil {
 		c.logger.Fatalf("error getting indices stats: %v", err)
+	}
+
+	var names []string
+	for idx := range indices {
+		names = append(names, idx)
+	}
+	healthMap, err := c.client.GetIndicesHealth(names)
+	if err != nil {
+		c.logger.Errorf("error getting indices health: %v", err)
+	} else {
+		for idx, status := range healthMap {
+			var val float64
+			switch status {
+			case "green":
+				val = 0
+			case "yellow":
+				val = 1
+			case "red":
+				val = 2
+			default:
+				continue
+			}
+			group := indexGroupLabelFunc(idx, today)
+			ch <- prometheus.MustNewConstMetric(c.indexHealth, prometheus.GaugeValue, val, idx, group)
+		}
 	}
 
 	indexGroupSize := make(map[string]float64, len(indices))

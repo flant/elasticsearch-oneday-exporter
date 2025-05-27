@@ -1,4 +1,4 @@
-FROM golang:1.18.5-buster as builder
+FROM golang:1.24.2-bookworm as builder
 
 WORKDIR /src
 
@@ -8,7 +8,7 @@ RUN go install -v github.com/prometheus/promu@latest \
     && promu build -v --prefix build
 
 
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 RUN DEBIAN_FRONTEND=noninteractive; apt-get update \
     && apt-get install -qy --no-install-recommends \

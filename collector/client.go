@@ -160,3 +160,33 @@ func (c *Client) GetClusterSettings() (map[string]interface{}, error) {
 
 	return r, nil
 }
+
+func (c *Client) GetIndicesHealth(indices []string) (map[string]string, error) {
+	resp, err := c.es.Cluster.Health(
+		c.es.Cluster.Health.WithIndex(indices...),
+		c.es.Cluster.Health.WithLevel("indices"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster health: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("health request failed: %s", resp.String())
+	}
+
+	var body struct {
+		Indices map[string]struct {
+			Status string `json:"status"`
+		} `json:"indices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]string, len(body.Indices))
+	for idx, info := range body.Indices {
+		result[idx] = info.Status
+	}
+	return result, nil
+}
