@@ -17,12 +17,13 @@ type IndicesCollector struct {
 
 	datePattern string
 
-	indexSize      *prometheus.Desc
-	indexTotalSize *prometheus.Desc
-	indexGroupSize *prometheus.Desc
-	docsCount      *prometheus.Desc
-	shardsDocs     *prometheus.Desc
-	indexHealth    *prometheus.Desc
+	indexSize             *prometheus.Desc
+	indexTotalSize        *prometheus.Desc
+	indexGroupSize        *prometheus.Desc
+	docsCount             *prometheus.Desc
+	shardsDocs            *prometheus.Desc
+	indexHealth           *prometheus.Desc
+	indexStatsUnavailable *prometheus.Desc
 }
 
 func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_group []string, labels_health []string, datepattern string,
@@ -56,6 +57,10 @@ func NewIndicesCollector(logger *logrus.Logger, client *Client, labels, labels_g
 			prometheus.BuildFQName(namespace, "indices_health", "status"),
 			"Health status of each index: green=0,yellow=1,red=2", labels_health, constLabels,
 		),
+		indexStatsUnavailable: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "indices", "stats_unavailable"),
+			"1 if index stats were skipped (e.g. ES bug with negative longs); use for alerting on problematic indices", labels, constLabels,
+		),
 	}
 }
 
@@ -66,6 +71,7 @@ func (c *IndicesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.indexGroupSize
 	ch <- c.shardsDocs
 	ch <- c.indexHealth
+	ch <- c.indexStatsUnavailable
 }
 
 func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
@@ -74,7 +80,8 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 
 	indices, err := c.client.GetIndices([]string{indicesPattern})
 	if err != nil {
-		c.logger.Fatalf("error getting indices stats: %v", err)
+		c.logger.Errorf("error getting indices stats: %v", err)
+		return
 	}
 
 	healthMap, err := c.client.GetIndicesHealth([]string{"*"})
@@ -103,14 +110,33 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
+	requiredPaths := []string{
+		"primaries.indexing.index_total",
+		"primaries.store.size_in_bytes",
+		"primaries.docs.count",
+		"total.store.size_in_bytes",
+	}
+
 	indexGroupSize := make(map[string]float64, len(indices))
 	for index, v := range indices {
-		// Create variable with index prefix
 		indexGrouplabel := indexGroupLabelFunc(index, today)
 
 		data, ok := v.(map[string]interface{})
 		if !ok {
 			c.logger.Errorf("got invalid index stats for: %s", index)
+			continue
+		}
+
+		statsComplete := true
+		for _, path := range requiredPaths {
+			if _, ok := walk(data, path); !ok {
+				statsComplete = false
+				c.logger.Warnf("skipping index %s: required stats incomplete (missing %q), likely OS negative longs bug", index, path)
+				break
+			}
+		}
+		if !statsComplete {
+			ch <- prometheus.MustNewConstMetric(c.indexStatsUnavailable, prometheus.GaugeValue, 1, index, indexGrouplabel)
 			continue
 		}
 
@@ -121,8 +147,6 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 			} else {
 				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, count)
 			}
-		} else {
-			c.logger.Errorf("%q was not found for: %s", path, index)
 		}
 
 		path = "primaries.store.size_in_bytes"
@@ -141,8 +165,6 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 			} else {
 				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, size)
 			}
-		} else {
-			c.logger.Errorf("%q was not found for: %s", path, index)
 		}
 
 		path = "total.store.size_in_bytes"
@@ -152,8 +174,6 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 			} else {
 				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, size)
 			}
-		} else {
-			c.logger.Errorf("%q was not found for: %s", path, index)
 		}
 
 		path = "primaries.docs.count"
@@ -163,10 +183,7 @@ func (c *IndicesCollector) Collect(ch chan<- prometheus.Metric) {
 			} else {
 				c.logger.Errorf("got invalid %q value for: %s value: %#v", path, index, count)
 			}
-		} else {
-			c.logger.Errorf("%q was not found for: %s", path, index)
 		}
-
 	}
 
 	for indexGroup, v := range indexGroupSize {
