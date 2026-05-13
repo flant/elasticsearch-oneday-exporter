@@ -21,9 +21,11 @@ type IndexHealthInfo struct {
 	NumberOfReplicas int    `json:"number_of_replicas"`
 }
 
-func NewClient(logger *logrus.Logger, addresses []string, tlsClientConfig *tls.Config) (*Client, error) {
+func NewClient(logger *logrus.Logger, addresses []string, basicUser, basicPassword string, tlsClientConfig *tls.Config) (*Client, error) {
 	cfg := elasticsearch.Config{
 		Addresses: addresses,
+		Username:  basicUser,
+		Password:  basicPassword,
 		Transport: &http.Transport{
 			TLSClientConfig: tlsClientConfig,
 		},

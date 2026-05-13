@@ -1,6 +1,6 @@
 module github.com/flant/elasticsearch-oneday-exporter
 
-go 1.24
+go 1.25
 
 require (
 	github.com/elastic/go-elasticsearch/v7 v7.10.0

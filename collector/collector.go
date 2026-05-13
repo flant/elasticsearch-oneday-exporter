@@ -22,8 +22,8 @@ var (
 	clabels       = []string{"section"}
 )
 
-func NewCollector(logger *logrus.Logger, address, project string, repo string, datepattern string, tlsClientConfig *tls.Config) error {
-	client, err := NewClient(logger, []string{address}, tlsClientConfig)
+func NewCollector(logger *logrus.Logger, address, basicUser, basicPassword, project string, repo string, datepattern string, tlsClientConfig *tls.Config) error {
+	client, err := NewClient(logger, []string{address}, basicUser, basicPassword, tlsClientConfig)
 	if err != nil {
 		return fmt.Errorf("error creating the client: %v", err)
 	}

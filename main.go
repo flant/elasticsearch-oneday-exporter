@@ -51,6 +51,11 @@ var (
 	insecure = kingpin.Flag("insecure", "Skip SSL verification when connecting to Elasticsearch.").
 			Default("false").Bool()
 
+	basicUser = kingpin.Flag("basic-user", "Username for HTTP Basic auth when connecting to Elasticsearch.").
+			Default("").String()
+	basicPassword = kingpin.Flag("basic-password", "Password for HTTP Basic auth when connecting to Elasticsearch.").
+			Default("").Envar("ES_BASIC_PASSWORD").String()
+
 	projectName = kingpin.Flag("project", "Project name").String()
 	repoName    = kingpin.Flag("repository", "Repository name").String()
 )
@@ -98,9 +103,14 @@ func main() {
 	log.Info("Starting es-oneday-exporter", version.Info())
 	log.Info("Build context", version.BuildContext())
 
-	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, *insecure)
+	skipVerify := *insecure
+	if *basicUser != "" && *cacert == "" {
+		skipVerify = true
+	}
 
-	err := collector.NewCollector(log, *address, *projectName, *repoName, *datePattern, tlsClientConfig)
+	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, skipVerify)
+
+	err := collector.NewCollector(log, *address, *basicUser, *basicPassword, *projectName, *repoName, *datePattern, tlsClientConfig)
 	if err != nil {
 		log.Fatalf("error creating new collector instance: %v", err)
 	}
