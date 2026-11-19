@@ -5,7 +5,7 @@ usage: es-oneday-exporter [<flags>]
 
 Authentication:
 
-  Set OPENSEACRCH_USER and OPENSEARCH_PASSWORD environment variables to authenticate with OpenSearch.
+  Set OPENSEARCH_USER and OPENSEARCH_PASSWORD environment variables to authenticate with OpenSearch.
 
 Flags:
   -h, --help                    Show context-sensitive help (also try --help-long and --help-man).
@@ -17,7 +17,7 @@ Flags:
       --telemetry.path="/metrics"
                                 URL path for surfacing collected metrics.
       --address="http://localhost:9200"
-                                OpenSearch node to use. Do not specify username:password in this option; use OPENSEACRCH_USER and OPENSEARCH_PASSWORD environment variables instead.
+                                OpenSearch node to use. Do not specify username:password in this option; use OPENSEARCH_USER and OPENSEARCH_PASSWORD environment variables instead.
       --ca-cert=""              Path to PEM file that contains trusted Certificate Authorities for the OpenSearch connection.
       --client-cert=""          Path to PEM file that contains the corresponding cert for the private key to connect to OpenSearch.
       --client-key=""           Path to PEM file that contains the private key for client auth when connecting to OpenSearch.

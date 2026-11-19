@@ -58,7 +58,7 @@ var (
 
 func main() {
 	kingpin.CommandLine.Help = `Authentication:
-  Set OPENSEACRCH_USER and OPENSEARCH_PASSWORD environment variables to authenticate with OpenSearch.`
+  Set OPENSEARCH_USER and OPENSEARCH_PASSWORD environment variables to authenticate with OpenSearch.`
 	kingpin.Version(version.Print("es-oneday-exporter"))
 	kingpin.HelpFlag.Short('h')
 
