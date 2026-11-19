@@ -23,7 +23,7 @@ type IndexHealthInfo struct {
 }
 
 func NewClient(logger *logrus.Logger, addresses []string, tlsClientConfig *tls.Config) (*Client, error) {
-	cfg := newElasticsearchConfig(addresses, tlsClientConfig, os.Getenv("OPENSEACRCH_USER"), os.Getenv("OPENSEARCH_PASSWORD"))
+	cfg := newElasticsearchConfig(addresses, tlsClientConfig, os.Getenv("OPENSEARCH_USER"), os.Getenv("OPENSEARCH_PASSWORD"))
 
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {

@@ -41,7 +41,7 @@ var (
 	metricsPath = kingpin.Flag("telemetry.path", "URL path for surfacing collected metrics.").
 			Default("/metrics").String()
 
-	address = kingpin.Flag("address", "OpenSearch node to use. Do not specify username:password in this option; use OPENSEACRCH_USER and OPENSEARCH_PASSWORD environment variables instead.").
+	address = kingpin.Flag("address", "OpenSearch node to use. Do not specify username:password in this option; use OPENSEARCH_USER and OPENSEARCH_PASSWORD environment variables instead.").
 		Default("http://localhost:9200").String()
 	cacert = kingpin.Flag("ca-cert", "Path to PEM file that contains trusted Certificate Authorities for the OpenSearch connection.").
 		Default("").String()
