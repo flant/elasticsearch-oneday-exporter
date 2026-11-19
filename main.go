@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/flant/elasticsearch-oneday-exporter/collector"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -40,27 +41,24 @@ var (
 	metricsPath = kingpin.Flag("telemetry.path", "URL path for surfacing collected metrics.").
 			Default("/metrics").String()
 
-	address = kingpin.Flag("address", "Elasticsearch node to use.").
+	address = kingpin.Flag("address", "OpenSearch node to use. Do not specify username:password in this option; use OPENSEACRCH_USER and OPENSEARCH_PASSWORD environment variables instead.").
 		Default("http://localhost:9200").String()
-	cacert = kingpin.Flag("ca-cert", "Path to PEM file that contains trusted Certificate Authorities for the Elasticsearch connection.").
+	cacert = kingpin.Flag("ca-cert", "Path to PEM file that contains trusted Certificate Authorities for the OpenSearch connection.").
 		Default("").String()
-	clientcert = kingpin.Flag("client-cert", "Path to PEM file that contains the corresponding cert for the private key to connect to Elasticsearch.").
+	clientcert = kingpin.Flag("client-cert", "Path to PEM file that contains the corresponding cert for the private key to connect to OpenSearch.").
 			Default("").String()
-	clientkey = kingpin.Flag("client-key", "Path to PEM file that contains the private key for client auth when connecting to Elasticsearch.").
+	clientkey = kingpin.Flag("client-key", "Path to PEM file that contains the private key for client auth when connecting to OpenSearch.").
 			Default("").String()
-	insecure = kingpin.Flag("insecure", "Skip SSL verification when connecting to Elasticsearch.").
+	insecure = kingpin.Flag("insecure", "Skip SSL verification when connecting to OpenSearch.").
 			Default("false").Bool()
-
-	basicUser = kingpin.Flag("basic-user", "Username for HTTP Basic auth when connecting to Elasticsearch.").
-			Default("").String()
-	basicPassword = kingpin.Flag("basic-password", "Password for HTTP Basic auth when connecting to Elasticsearch.").
-			Default("").Envar("ES_BASIC_PASSWORD").String()
 
 	projectName = kingpin.Flag("project", "Project name").String()
 	repoName    = kingpin.Flag("repository", "Repository name").String()
 )
 
 func main() {
+	kingpin.CommandLine.Help = `Authentication:
+  Set OPENSEACRCH_USER and OPENSEARCH_PASSWORD environment variables to authenticate with OpenSearch.`
 	kingpin.Version(version.Print("es-oneday-exporter"))
 	kingpin.HelpFlag.Short('h')
 
@@ -104,13 +102,13 @@ func main() {
 	log.Info("Build context", version.BuildContext())
 
 	skipVerify := *insecure
-	if *basicUser != "" && *cacert == "" {
+	if os.Getenv("OPENSEACRCH_USER") != "" && *cacert == "" {
 		skipVerify = true
 	}
 
 	tlsClientConfig := createTLSConfig(*cacert, *clientcert, *clientkey, skipVerify)
 
-	err := collector.NewCollector(log, *address, *basicUser, *basicPassword, *projectName, *repoName, *datePattern, tlsClientConfig)
+	err := collector.NewCollector(log, *address, *projectName, *repoName, *datePattern, tlsClientConfig)
 	if err != nil {
 		log.Fatalf("error creating new collector instance: %v", err)
 	}
