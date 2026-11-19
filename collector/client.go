@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v7"
 	"github.com/sirupsen/logrus"
@@ -21,15 +22,8 @@ type IndexHealthInfo struct {
 	NumberOfReplicas int    `json:"number_of_replicas"`
 }
 
-func NewClient(logger *logrus.Logger, addresses []string, basicUser, basicPassword string, tlsClientConfig *tls.Config) (*Client, error) {
-	cfg := elasticsearch.Config{
-		Addresses: addresses,
-		Username:  basicUser,
-		Password:  basicPassword,
-		Transport: &http.Transport{
-			TLSClientConfig: tlsClientConfig,
-		},
-	}
+func NewClient(logger *logrus.Logger, addresses []string, tlsClientConfig *tls.Config) (*Client, error) {
+	cfg := newElasticsearchConfig(addresses, tlsClientConfig, os.Getenv("OPENSEARCH_USER"), os.Getenv("OPENSEARCH_PASSWORD"))
 
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {
@@ -37,7 +31,15 @@ func NewClient(logger *logrus.Logger, addresses []string, basicUser, basicPasswo
 	}
 
 	return &Client{es: es, logger: logger}, nil
+}
 
+func newElasticsearchConfig(addresses []string, tlsClientConfig *tls.Config, username, password string) elasticsearch.Config {
+	return elasticsearch.Config{
+		Addresses: addresses,
+		Username:  username,
+		Password:  password,
+		Transport: &http.Transport{TLSClientConfig: tlsClientConfig},
+	}
 }
 
 func (c *Client) GetIndices(s []string) (map[string]interface{}, error) {
